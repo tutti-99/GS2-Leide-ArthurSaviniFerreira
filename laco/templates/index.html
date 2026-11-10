@@ -1,0 +1,320 @@
+{#- Laço: página única que consome a API REST.
+    Regras de segurança da página:
+      * nada de <script> ou style="" dentro do HTML (a CSP do servidor bloqueia);
+      * todo o comportamento fica em static/app.js e todo o visual em static/style.css;
+      * as imagens são SVG originais incluídos do diretório templates/partes. -#}
+{%- macro icone(nome, classe="") -%}
+<svg class="icone {{ classe }}" aria-hidden="true" focusable="false"><use href="#i-{{ nome }}"></use></svg>
+{%- endmacro -%}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Laço: rede de apoio de vizinhança para idosos e pessoas com deficiência em São Paulo.">
+  <meta name="theme-color" content="#261A3D">
+  <title>Laço: apoio de vizinhança para idosos e pessoas com deficiência</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% include "partes/icones.svg" %}
+  <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+  <!-- ===================== cabeçalho ===================== -->
+  <header class="topo">
+    <div class="topo-interno">
+      <a class="marca" href="#inicio" aria-label="Laço, voltar ao início">
+        <svg class="marca-simbolo" aria-hidden="true" focusable="false"><use href="#logo-laco"></use></svg>
+        <span class="marca-nome">Laço</span>
+      </a>
+      <nav class="menu" aria-label="Seções da página">
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#pedir">Pedir apoio</a>
+        <a href="#tempo">Tempo hoje</a>
+        <a href="#central">Central</a>
+        <a href="#privacidade">Privacidade</a>
+      </nav>
+      <div class="acessibilidade" role="group" aria-label="Ajustes de leitura">
+        <button type="button" class="botao-icone" id="fonte-menor">A−<span class="so-leitor"> diminuir o texto</span></button>
+        <button type="button" class="botao-icone" id="fonte-maior">A+<span class="so-leitor"> aumentar o texto</span></button>
+        <button type="button" class="botao-icone" id="alto-contraste" aria-pressed="false" aria-label="Alto contraste">
+          {{ icone("contraste") }}
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <!-- ===================== abertura ===================== -->
+    <section class="abertura" id="inicio" aria-labelledby="titulo-principal">
+      <div class="abertura-texto">
+        <h1 id="titulo-principal">Ninguém precisa buscar o remédio sozinho.</h1>
+        <p class="abertura-lead">
+          O Laço liga idosos e pessoas com deficiência de São Paulo a voluntários do mesmo bairro,
+          para ir à farmácia, a uma consulta, ao mercado ou resolver algo no celular.
+        </p>
+        <p class="abertura-garantia">{{ icone("escudo") }} Sem CPF, endereço ou telefone: só um apelido e a sua região.</p>
+        <div class="abertura-acoes">
+          <a class="botao botao-principal" href="#pedir">{{ icone("mao") }} Pedir apoio</a>
+          <a class="botao botao-contorno" href="#central">Sou voluntário</a>
+        </div>
+        <figure class="evidencia">
+          <blockquote>No Brasil, 41% das pessoas que moram sozinhas têm 60 anos ou mais.</blockquote>
+          <figcaption>IBGE, PNAD Contínua 2025</figcaption>
+        </figure>
+      </div>
+      <div class="abertura-arte">
+        {% include "partes/ilustracao.svg" %}
+      </div>
+    </section>
+
+    <!-- ===================== como funciona (sequência real: 3 passos) ===================== -->
+    <section class="secao" id="como-funciona" aria-labelledby="titulo-como">
+      <h2 id="titulo-como">Como funciona</h2>
+      <ol class="passos">
+        <li class="passo">
+          <span class="passo-numero" aria-hidden="true">1</span>
+          <h3>Você faz o pedido</h3>
+          <p>Escolha o tipo de ajuda, a região e o melhor período. Leva menos de dois minutos.</p>
+        </li>
+        <li class="passo">
+          <span class="passo-numero" aria-hidden="true">2</span>
+          <h3>A central recebe na hora</h3>
+          <p>Um alerta chega aos voluntários. Em dia de calor forte ou ar seco, o seu pedido passa na frente.</p>
+        </li>
+        <li class="passo">
+          <span class="passo-numero" aria-hidden="true">3</span>
+          <h3>Um vizinho ajuda</h3>
+          <p>A instituição parceira do bairro (CRAS, UBS ou associação) combina o encontro com você.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ===================== pedido + tempo ===================== -->
+    <div class="secao grade-pedido">
+      <section class="painel painel-pedido" id="pedir" aria-labelledby="titulo-pedido">
+        <h2 id="titulo-pedido">Pedir apoio</h2>
+
+        <form id="form-pedido" novalidate>
+          <div class="campo">
+            <label for="apelido">Como podemos te chamar?</label>
+            <p class="dica" id="dica-apelido">Pode ser um apelido, como “Dona Cida”.</p>
+            <input id="apelido" name="apelido" type="text" maxlength="40" autocomplete="nickname"
+                   required aria-describedby="dica-apelido erro-apelido">
+            <p class="erro-campo" id="erro-apelido"></p>
+          </div>
+
+          <fieldset class="campo" id="grupo-tipo" aria-describedby="erro-tipo">
+            <legend>Do que você precisa?</legend>
+            <div class="tiles">
+              <label class="tile">
+                <input type="radio" name="tipo" value="farmacia">
+                <span class="tile-icone">{{ icone("farmacia") }}</span>
+                <span class="tile-titulo">Farmácia</span>
+                <span class="tile-texto">Buscar remédio</span>
+              </label>
+              <label class="tile">
+                <input type="radio" name="tipo" value="acompanhamento">
+                <span class="tile-icone">{{ icone("acompanhamento") }}</span>
+                <span class="tile-titulo">Consulta</span>
+                <span class="tile-texto">Ir junto a consulta ou exame</span>
+              </label>
+              <label class="tile">
+                <input type="radio" name="tipo" value="compras">
+                <span class="tile-icone">{{ icone("compras") }}</span>
+                <span class="tile-titulo">Compras</span>
+                <span class="tile-texto">Mercado ou padaria</span>
+              </label>
+              <label class="tile">
+                <input type="radio" name="tipo" value="tecnologia">
+                <span class="tile-icone">{{ icone("tecnologia") }}</span>
+                <span class="tile-titulo">Celular</span>
+                <span class="tile-texto">Aplicativo ou serviço digital</span>
+              </label>
+              <label class="tile">
+                <input type="radio" name="tipo" value="companhia">
+                <span class="tile-icone">{{ icone("companhia") }}</span>
+                <span class="tile-titulo">Companhia</span>
+                <span class="tile-texto">Conversa e um café</span>
+              </label>
+            </div>
+            <p class="erro-campo" id="erro-tipo"></p>
+          </fieldset>
+
+          <div class="linha-dupla">
+            <div class="campo">
+              <label for="regiao">Sua região</label>
+              <div class="seletor">
+                <select id="regiao" name="regiao" required aria-describedby="erro-regiao">
+                  <option value="">Escolha a região</option>
+                  <option value="centro">Centro</option>
+                  <option value="zona-norte">Zona Norte</option>
+                  <option value="zona-sul">Zona Sul</option>
+                  <option value="zona-leste">Zona Leste</option>
+                  <option value="zona-oeste">Zona Oeste</option>
+                </select>
+              </div>
+              <p class="erro-campo" id="erro-regiao"></p>
+            </div>
+
+            <fieldset class="campo" id="grupo-periodo" aria-describedby="erro-periodo">
+              <legend>Melhor período</legend>
+              <div class="segmentos">
+                <label class="segmento">
+                  <input type="radio" name="periodo" value="manha">
+                  <span>{{ icone("manha") }} Manhã</span>
+                </label>
+                <label class="segmento">
+                  <input type="radio" name="periodo" value="tarde">
+                  <span>{{ icone("tarde") }} Tarde</span>
+                </label>
+                <label class="segmento">
+                  <input type="radio" name="periodo" value="noite">
+                  <span>{{ icone("noite") }} Noite</span>
+                </label>
+              </div>
+              <p class="erro-campo" id="erro-periodo"></p>
+            </fieldset>
+          </div>
+
+          <div class="campo">
+            <label for="descricao">Conte o que você precisa</label>
+            <p class="dica" id="dica-descricao">Não escreva telefone, CPF, CEP ou <span class="sem-quebra">e-mail</span>. A instituição parceira entra em contato com você.</p>
+            <textarea id="descricao" name="descricao" rows="4" maxlength="280" required
+                      aria-describedby="dica-descricao contador erro-descricao"></textarea>
+            <p class="contador" id="contador"><span id="contador-numero">0</span> de 280 caracteres</p>
+            <p class="erro-campo" id="erro-descricao"></p>
+          </div>
+
+          <button type="submit" class="botao botao-principal botao-largo" id="botao-enviar">Enviar pedido</button>
+          <p class="mensagem-form" id="mensagem-pedido" role="status" aria-live="polite"></p>
+        </form>
+
+        <!-- confirmação (aparece no lugar do formulário depois do envio) -->
+        <div class="confirmacao" id="confirmacao" hidden tabindex="-1">
+          <div class="confirmacao-selo">{{ icone("check") }}</div>
+          <h3 id="confirmacao-titulo">Pedido recebido</h3>
+          <p id="confirmacao-texto"></p>
+          <p id="confirmacao-prioridade" class="confirmacao-prioridade" hidden>
+            {{ icone("alerta") }} Marcamos o seu pedido como prioridade alta.
+          </p>
+          <button type="button" class="botao botao-contorno" id="botao-novo-pedido">Fazer outro pedido</button>
+        </div>
+      </section>
+
+      <div class="coluna-lateral">
+        <section class="painel painel-tempo" id="tempo" aria-labelledby="titulo-tempo">
+          <h2 id="titulo-tempo">{{ icone("termometro") }} Tempo hoje</h2>
+          <div id="painel-clima" aria-live="polite">
+            <p class="tempo-vazio">Escolha a sua região no formulário para ver a temperatura e os cuidados do dia.</p>
+          </div>
+        </section>
+
+        <section class="painel painel-nunca" aria-labelledby="titulo-nunca">
+          <h2 id="titulo-nunca">O que o Laço nunca pede</h2>
+          <ul class="lista-nunca">
+            <li>{{ icone("x") }} CPF ou RG</li>
+            <li>{{ icone("x") }} Endereço</li>
+            <li>{{ icone("x") }} Telefone ou e-mail</li>
+            <li>{{ icone("x") }} Idade</li>
+            <li>{{ icone("x") }} Tipo de deficiência ou doença</li>
+          </ul>
+          <p class="dica">Quanto menos dados guardamos, menos dados podem vazar. É a coleta mínima da LGPD.</p>
+        </section>
+      </div>
+    </div>
+
+    <!-- ===================== central de voluntários ===================== -->
+    <section class="central" id="central" aria-labelledby="titulo-central">
+      <div class="central-interno">
+        <div class="central-cabecalho">
+          <div>
+            <h2 id="titulo-central">Central de voluntários</h2>
+            <p>Área da equipe da instituição parceira. Os pedidos só aparecem com a chave de acesso.</p>
+          </div>
+          <div class="central-sessao" id="central-sessao" hidden>
+            <button type="button" class="botao botao-claro" id="botao-atualizar">{{ icone("atualizar") }} Atualizar</button>
+            <button type="button" class="botao botao-fantasma" id="botao-sair">{{ icone("sair") }} Sair</button>
+          </div>
+        </div>
+
+        <form class="entrada" id="form-chave">
+          <div class="entrada-icone">{{ icone("chave") }}</div>
+          <div class="campo">
+            <label for="chave">Chave de acesso</label>
+            <input id="chave" type="password" autocomplete="current-password" required aria-describedby="mensagem-chave">
+          </div>
+          <button type="submit" class="botao botao-ouro">Entrar</button>
+          <p class="mensagem-form" id="mensagem-chave" role="status" aria-live="polite"></p>
+        </form>
+
+        <div id="area-central" hidden>
+          <dl class="resumo">
+            <div><dt>Abertos</dt><dd id="resumo-aberto">0</dd></div>
+            <div><dt>Em atendimento</dt><dd id="resumo-em_atendimento">0</dd></div>
+            <div><dt>Prioridade alta abertos</dt><dd id="resumo-alta">0</dd></div>
+            <div><dt>Concluídos</dt><dd id="resumo-concluido">0</dd></div>
+          </dl>
+
+          <div class="filtros" role="group" aria-label="Filtrar pedidos">
+            <button type="button" class="filtro" data-status="aberto" aria-pressed="true">Abertos <span data-contagem="aberto">0</span></button>
+            <button type="button" class="filtro" data-status="em_atendimento" aria-pressed="false">Em atendimento <span data-contagem="em_atendimento">0</span></button>
+            <button type="button" class="filtro" data-status="concluido" aria-pressed="false">Concluídos <span data-contagem="concluido">0</span></button>
+            <button type="button" class="filtro" data-status="cancelado" aria-pressed="false">Cancelados <span data-contagem="cancelado">0</span></button>
+            <button type="button" class="filtro" data-status="" aria-pressed="false">Todos <span data-contagem="todos">0</span></button>
+          </div>
+
+          <p class="lista-vazia" id="lista-vazia" hidden></p>
+          <ul class="lista-pedidos" id="lista-pedidos"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== privacidade e segurança ===================== -->
+    <section class="secao" id="privacidade" aria-labelledby="titulo-privacidade">
+      <h2 id="titulo-privacidade">Como protegemos quem pede ajuda</h2>
+      <p class="secao-lead">Idosos que moram sozinhos são alvo frequente de golpes. Por isso a segurança vem antes de qualquer recurso.</p>
+      <ul class="protecoes">
+        <li>{{ icone("escudo") }}<div><h3>Coleta mínima</h3><p>Só apelido, região, tipo de ajuda, período e uma descrição curta. Descrições com telefone, CPF, CEP ou <span class="sem-quebra">e-mail</span> são recusadas.</p></div></li>
+        <li>{{ icone("banco") }}<div><h3>Banco de dados protegido</h3><p>Toda consulta ao MySQL é parametrizada, e o usuário da aplicação não tem permissão para apagar tabelas.</p></div></li>
+        <li>{{ icone("chave") }}<div><h3>Acesso com chave</h3><p>Só a central lê e altera pedidos. Dez tentativas erradas bloqueiam o acesso por alguns minutos.</p></div></li>
+        <li>{{ icone("sino") }}<div><h3>Alertas assinados</h3><p>O aviso que chega à central por socket TCP leva uma assinatura HMAC. Mensagens falsas ou antigas são recusadas.</p></div></li>
+        <li>{{ icone("codigo") }}<div><h3>Página protegida</h3><p>Nenhum texto digitado vira código: a página exibe tudo como texto e segue uma política de segurança de conteúdo (CSP).</p></div></li>
+        <li>{{ icone("registro") }}<div><h3>Tudo registrado</h3><p>Cada ação fica no log com data, hora e resultado, sem nenhum dado pessoal.</p></div></li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- ===================== rodapé ===================== -->
+  <footer class="rodape">
+    <div class="rodape-interno">
+      <div class="rodape-marca">
+        <svg class="marca-simbolo" aria-hidden="true" focusable="false"><use href="#logo-laco"></use></svg>
+        <p><strong>Laço</strong><br>Rede de apoio de vizinhança para idosos e pessoas com deficiência em São Paulo.</p>
+      </div>
+      <div>
+        <h2 class="rodape-titulo">Objetivos de Desenvolvimento Sustentável</h2>
+        <ul class="ods">
+          <li class="ods-3"><span>3</span> Saúde e bem-estar</li>
+          <li class="ods-10"><span>10</span> Redução das desigualdades</li>
+          <li class="ods-11"><span>11</span> Cidades e comunidades sustentáveis</li>
+          <li class="ods-13"><span>13</span> Ação contra a mudança do clima</li>
+        </ul>
+      </div>
+      <div class="rodape-creditos">
+        <p>Protótipo acadêmico da Global Solution 2026 de Coding for Security, FIAP. Feito por Arthur Savini Ferreira.</p>
+        <p>Dados de clima: <a href="https://open-meteo.com/" rel="noopener noreferrer">Open-Meteo.com</a> (CC BY 4.0).
+           Fonte: Atkinson Hyperlegible Next, criada pelo Braille Institute para leitura com baixa visão (OFL).</p>
+        <p>Todos os pedidos e voluntários exibidos são fictícios.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- avisos rápidos (toasts) -->
+  <div class="avisos" id="avisos" role="status" aria-live="polite"></div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
